@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	tm "unsafethreadwrapper"
+	tm "github.com/Averianov/unsafethreadwrapper"
 )
 
 // Флаги для принудительного завершения
