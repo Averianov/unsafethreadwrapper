@@ -26,9 +26,9 @@ help:
 
 build: 
 	go mod tidy
-	CGO_ENABLED=1 go build -o demo ./cmd/demo/main.go
+	CGO_ENABLED=1 go build -o demo ./cmd/main.go
 
 run:
 	go clean -cache
-	CGO_ENABLED=1 go run ./cmd/demo/main.go
+	CGO_ENABLED=1 go run ./cmd/main.go
 
