@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	tm "unsafetreadwrapper"
+	tm "unsafethreadwrapper"
 )
 
 // Флаги для принудительного завершения
