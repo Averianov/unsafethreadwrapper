@@ -11,6 +11,7 @@ GOGET=$(GOCMD) get
 GOLIST=$(GOCMD) list
 GOVET=$(GOCMD) vet
 GORUN=$(GOCMD) run
+CGO_ENABLED=1
 
 help:
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
@@ -24,11 +25,76 @@ help:
 	@echo ''
 
 
-build: 
+build:
 	go mod tidy
-	CGO_ENABLED=1 go build -o demo ./cmd/main.go
+	go build -o demo ./cmd/main.go
 
 run:
-	go clean -cache
-	CGO_ENABLED=1 go run ./cmd/main.go
+	#go clean -cache
+	#go mod tidy
+	#CGO_ENABLED=1 go run ./cmd/main.go
+	./master
 
+test:
+	go test -v ./...
+
+build-worker:
+	go build -o worker worker.go
+
+build-logger:
+	go build -o logger logger.go
+
+worker_elf.h: worker
+	xxd -i worker > internal/worker_elf.h
+
+logger_elf.h: logger
+	xxd -i logger > internal/logger_elf.h
+
+# Новый раздел для автоматической сборки elf-процессов
+
+PROCESS_JSON=processes.json
+EXECDIR=cmd/executable
+SRCDIR=cmd
+
+# Получить список процессов из processes.json (jq должен быть установлен)
+PROCESSES=$(shell jq -r '.processes[].name' $(PROCESS_JSON))
+
+TMPDIR=build
+
+.PHONY: all build-elves check-elves gen-headers build-master clean
+
+all: build-elves check-elves gen-headers build-master
+
+build-elves:
+	@mkdir -p $(EXECDIR)
+	@for proc in $(PROCESSES); do \
+	  if [ -f $(SRCDIR)/$$proc/main.go ]; then \
+	    echo "Building $$proc..."; \
+	    go build -o $(EXECDIR)/$$proc $(SRCDIR)/$$proc/main.go; \
+	  else \
+	    echo "Source for $$proc not found!"; \
+	    exit 1; \
+	  fi; \
+	done
+
+check-elves:
+	@for proc in $(PROCESSES); do \
+	  if [ ! -f $(EXECDIR)/$$proc ]; then \
+	    echo "Executable for $$proc not found!"; \
+	    exit 1; \
+	  fi; \
+	done
+
+# Генерация .h файлов для мастера во временную директорию
+gen-headers:
+	@mkdir -p $(TMPDIR)
+	./scripts/gen_elf_payloads.sh $(PROCESS_JSON) $(EXECDIR) $(TMPDIR)
+
+build-elf-payloads:
+	gcc -c $(TMPDIR)/elf_payloads.c -o $(TMPDIR)/elf_payloads.o
+
+build-master: build-elf-payloads
+	gcc -o master internal/master.c $(TMPDIR)/elf_payloads.o -lcjson -lrt
+
+clean:
+	rm -rf $(EXECDIR)/* $(TMPDIR) master

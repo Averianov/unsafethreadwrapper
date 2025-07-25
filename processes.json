@@ -1,0 +1,31 @@
+{
+  "sockets": [
+    { "name": "master_sock", "path": "/tmp/master.sock" },
+    { "name": "logger_sock", "path": "/tmp/logger.sock" },
+    { "name": "worker1_sock", "path": "/tmp/worker1.sock" },
+    { "name": "worker2_sock", "path": "/tmp/worker2.sock" }
+  ],
+  "processes": [
+    {
+      "name": "logger",
+      "must_start": false,
+      "st_in_progress": false,
+      "st_launched": false,
+      "required": []
+    },
+    {
+      "name": "worker1",
+      "must_start": true,
+      "st_in_progress": false,
+      "st_launched": false,
+      "required": ["logger"]
+    },
+    {
+      "name": "worker2",
+      "must_start": false,
+      "st_in_progress": false,
+      "st_launched": false,
+      "required": ["logger"]
+    }
+  ]
+} 
