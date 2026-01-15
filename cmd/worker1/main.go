@@ -20,6 +20,6 @@ func main() {
 
 	service.Srv(wpr)
 
-	wpr.StartService("worker2") // инициировать запуск worker2 через master_sock
+	//wpr.StartService("worker2") // инициировать запуск worker2 через master_sock
 	//wpr.StopService(wpr.Name)   // "должен быть остановлен" - чтобы повторно не запускался
 }

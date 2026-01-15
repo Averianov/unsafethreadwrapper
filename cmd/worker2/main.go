@@ -21,7 +21,7 @@ func main() {
 	defer wpr.RegularStop()
 
 	defer wpr.StopService(wpr.Name)
-	defer wpr.StopServiceRecursive("logger")
+	// defer wpr.StopServiceRecursive("logger")
 	// Работа
 	for i := 0; i < 10; i++ {
 		select {

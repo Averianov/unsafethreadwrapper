@@ -22,7 +22,7 @@
     },
     {
       "name": "worker2",
-      "must_start": false,
+      "must_start": true,
       "st_in_progress": false,
       "st_launched": false,
       "required": ["logger"]

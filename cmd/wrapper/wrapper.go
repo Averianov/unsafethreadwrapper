@@ -44,6 +44,7 @@ type Wrapper struct {
 
 const (
 	MASTER             string = "master"
+	JSON_PATH          string = "../processes.json"
 	NUMBER_OF_ATTEMPTS int    = 5
 )
 
@@ -67,7 +68,7 @@ func CreateWrapper(name string) (wpr *Wrapper, err error) {
 		Processes: []Processes{},
 	}
 	var fileBytes []byte
-	fileBytes, err = os.ReadFile("./processes.json")
+	fileBytes, err = os.ReadFile(JSON_PATH)
 	if err != nil {
 		fmt.Println(err)
 		return

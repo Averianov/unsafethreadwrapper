@@ -16,7 +16,7 @@ func Srv(wpr *wrapper.Wrapper) {
 			return
 		default:
 			wpr.SendToService("logger", fmt.Sprintf("%s - %d", wpr.Name, i))
-			time.Sleep(1 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}
 	fmt.Printf("[%s] End task by timeout\n", wpr.Name)
