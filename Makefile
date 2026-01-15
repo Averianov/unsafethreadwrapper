@@ -33,7 +33,8 @@ run:
 	#go clean -cache
 	#go mod tidy
 	#CGO_ENABLED=1 go run ./cmd/main.go
-	./master
+	#./master
+	go run ./cmd/main.go
 
 test:
 	go test -v ./...
@@ -52,18 +53,21 @@ logger_elf.h: logger
 
 # Новый раздел для автоматической сборки elf-процессов
 
+.PHONY: all build-elves check-elves gen-headers build-master clean
+# all: build-elves check-elves gen-headers build-master
+all: 
+	./scripts/makeall.sh
+
+
 PROCESS_JSON=processes.json
-EXECDIR=cmd/executable
 SRCDIR=cmd
+EXECDIR=$(SRCDIR)/executable
 
 # Получить список процессов из processes.json (jq должен быть установлен)
 PROCESSES=$(shell jq -r '.processes[].name' $(PROCESS_JSON))
 
 TMPDIR=build
 
-.PHONY: all build-elves check-elves gen-headers build-master clean
-
-all: build-elves check-elves gen-headers build-master
 
 build-elves:
 	@mkdir -p $(EXECDIR)

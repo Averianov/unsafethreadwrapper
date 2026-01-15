@@ -4,8 +4,8 @@
 - Go
 - gcc
 - xxd
-- jq (установить через `sudo apt install jq`)
-- libcjson-dev (установить через `sudo apt install libcjson-dev`)
+- jq
+- libcjson-dev
 
 ## Сборка
 

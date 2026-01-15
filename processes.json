@@ -1,9 +1,9 @@
 {
   "sockets": [
-    { "name": "master_sock", "path": "/tmp/master.sock" },
-    { "name": "logger_sock", "path": "/tmp/logger.sock" },
-    { "name": "worker1_sock", "path": "/tmp/worker1.sock" },
-    { "name": "worker2_sock", "path": "/tmp/worker2.sock" }
+    { "name": "master", "path": "/tmp/master.sock" },
+    { "name": "logger", "path": "/tmp/logger.sock" },
+    { "name": "worker1", "path": "/tmp/worker1.sock" },
+    { "name": "worker2", "path": "/tmp/worker2.sock" }
   ],
   "processes": [
     {

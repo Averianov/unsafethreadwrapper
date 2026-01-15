@@ -193,8 +193,9 @@ int start_task(Task* t, const char* arg1) {
     }
     close(memfd);
     t->pid = pid;
-    t->st_launched = true;
-    t->st_in_progress = false;
+    //t->st_launched = true;
+    //t->st_in_progress = false;
+    t->st_in_progress = true;
     printf("[MASTER] Started %s pid=%d\n", t->name, pid);
     return 0;
 }
@@ -219,7 +220,8 @@ void stop_task(Task* t) {
         }
         t->pid = 0;
         t->st_launched = false;
-        t->st_in_progress = false;
+        t->st_in_progress = true;
+        //t->st_in_progress = false;
     }
 }
 
@@ -272,19 +274,33 @@ void task_dispatcher() {
             int status;
             pid_t res = waitpid(t->pid, &status, WNOHANG);
             if (res == 0) {
+                printf("[MASTER] Process %s is alive(must:%d;inpr:%d;lchd:%d)\n", t->name, t->must_start, t->st_in_progress, t->st_launched);
                 // Процесс ещё жив
                 active_processes++;
             } else if (res == t->pid) {
+                if (t->st_launched == 1) { // Если процесс аварийно завершился, то помечаем как завершенный
+                    printf("[MASTER] Process %s is broken(must:%d;inpr:%d;lchd:%d)\n", t->name, t->must_start, t->st_in_progress, t->st_launched);
+                    t->st_launched = 0;
+                }
                 // Процесс завершился
                 t->pid = 0;
             } else {
-                // Ошибка или процесс не существует
+                // Ошибка или процесса не существует
+                if (t->st_launched == 1) { // Если процесс аварийно завершился, то помечаем как завершенный
+                    //printf("[MASTER] Process %s is broken2\n", t->name);
+                    t->st_launched = 0;
+                }
                 t->pid = 0;
             }
+        } else if (t->st_launched == 1) { // Если процесс завершился, но не помечен, то помечаем как завершенный
+            t->st_launched = 0;
+            printf("[MASTER] Process %s is not launched(must:%d;inpr:%d;lchd:%d)\n", t->name, t->must_start, t->st_in_progress, t->st_launched);
         }
     }
+    //printf("[MASTER] all_finished:%s, any_was_started:%s, active_processes:%s\n", 
+    //    all_finished ? "true" : "false", any_was_started ? "true" : "false", active_processes ? "true" : "false");
     // Graceful shutdown только если нет активных процессов и были запущенные процессы
-    if (all_finished && any_was_started && active_processes == 0) {
+    if (all_finished && any_was_started == 0 && active_processes == 0) {
         printf("[MASTER] Graceful shutdown!\n");
         exit(0);
     }
@@ -314,6 +330,7 @@ void task_dispatcher() {
         } else if (t->must_start == true && t->st_in_progress == false && t->st_launched == false) {
             // Запускаем процесс, помечаем st_in_progress=true
             if (required_ready(t)) {
+                printf("[MASTER] Try Start service %s\n", t->name);
                 start_task(t, NULL);
                 t->st_in_progress = true;
                 t->wait_counter = 0;
@@ -323,9 +340,14 @@ void task_dispatcher() {
             if (t->wait_counter++ > 10) {
                 if (t->pid > 0) kill(t->pid, SIGKILL);
                 waitpid(t->pid, NULL, 0);
+                printf("[MASTER] Try Restart service %s\n", t->name);
                 start_task(t, NULL);  // Пытаемся перезапустить
                 t->wait_counter = 0;  // Обнуляем счетчик
             }
+        } else if (t->must_start == false && t->st_in_progress == true && t->st_launched == false) {
+            // Изменён статус дочернего процесса в верный, меняем st_in_progress=false
+            t->st_in_progress = false;
+            t->wait_counter = 0;
         } else if (t->must_start == true && t->st_in_progress == true && t->st_launched == true) {
             // Получен сигнал от дочернего процесса, меняем st_in_progress=false
             t->st_in_progress = false;
@@ -337,7 +359,7 @@ void task_dispatcher() {
     }
 }
 
-// --- Новый unified цикл обработки stdin и master_sock через select() ---
+// --- Новый unified цикл обработки stdin и master через select() ---
 void command_loop() {
     static int initialized = 0;
     static int client_fds[MAX_CLIENTS] = {0};
@@ -345,24 +367,24 @@ void command_loop() {
     
     int master_sock_fd = -1;
     for (int i = 0; i < socket_count; ++i) {
-        if (strcmp(sockets[i].name, "master_sock") == 0) {
+        if (strcmp(sockets[i].name, "master") == 0) {
             master_sock_fd = sockets[i].fd;
             break;
         }
     }
     if (master_sock_fd < 0) {
-        fprintf(stderr, "[MASTER] master_sock not found!\n");
+        fprintf(stderr, "[MASTER] master not found!\n");
         exit(1);
     }
     
     if (!initialized) {
         set_nonblocking(master_sock_fd);
         set_nonblocking(0); // stdin
-        printf("[MASTER] Listening for commands on master_sock and stdin (non-blocking)...\n");
+        printf("[MASTER] Listening for commands on master and stdin (non-blocking)...\n");
         initialized = 1;
     }
 
-    struct pollfd pfds[1 + MAX_CLIENTS + 1]; // master_sock + clients + stdin
+    struct pollfd pfds[1 + MAX_CLIENTS + 1]; // master + clients + stdin
     
     // Обрабатываем команды с таймаутом 1 секунда
     int nfds = 0;
@@ -410,7 +432,7 @@ void command_loop() {
             ssize_t n = read(client_fds[i], buf, sizeof(buf)-1);
             if (n > 0) {
                 buf[n] = 0;
-                printf("[MASTER] Received: %s\n", buf);
+                printf("[MASTER] Received: \n%s\n", buf);
                 
                 // Разбираем команды по строкам
                 char *line = strtok(buf, "\n");
@@ -444,7 +466,7 @@ void handle_master_command(const char* cmd, int to_stdout, int client_fd) {
     } else if (strncmp(cmd, "exit", 4) == 0) {
         for (int i = 0; i < task_count; ++i) tasks[i].must_start = false;
         if (!to_stdout) close(client_fd);
-        exit(0);
+        //exit(0);
     } else if (strncmp(cmd, "start ", 6) == 0) {
         char name[64];
         strncpy(name, cmd+6, 63);
@@ -458,7 +480,10 @@ void handle_master_command(const char* cmd, int to_stdout, int client_fd) {
             }
         }
         if (!found && !to_stdout) write(client_fd, "NOTFOUND\n", 9);
-    } else if (strncmp(cmd, "stop ", 5) == 0) {
+
+    // добавить рекурсивную остановку зависимых выше сервисов
+    // добавить проверку состояний зависимых сервисов
+    } else if (strncmp(cmd, "stop ", 5) == 0) { 
         char name[64];
         strncpy(name, cmd+5, 63);
         name[strcspn(name, "\n")] = 0;
@@ -479,8 +504,8 @@ void handle_master_command(const char* cmd, int to_stdout, int client_fd) {
         for (int i = 0; i < task_count; ++i) {
             if (strcmp(tasks[i].name, name) == 0) {
                 found = 1;
-                tasks[i].st_launched = true;  // Set st_launched to true
-                tasks[i].st_in_progress = false;  // Set st_in_progress to false
+                tasks[i].st_launched = true;  
+                tasks[i].st_in_progress = false;
                 if (!to_stdout) write(client_fd, "STATUS_UPDATED\n", 15);
             }
         }
@@ -493,8 +518,8 @@ void handle_master_command(const char* cmd, int to_stdout, int client_fd) {
         for (int i = 0; i < task_count; ++i) {
             if (strcmp(tasks[i].name, name) == 0) {
                 found = 1;
-                tasks[i].st_launched = false;  // Set st_launched to false
-                tasks[i].st_in_progress = false;  // Set st_in_progress to false
+                tasks[i].st_launched = false;  
+                tasks[i].st_in_progress = false;  
                 if (!to_stdout) write(client_fd, "STATUS_UPDATED\n", 15);
             }
         }
@@ -522,7 +547,7 @@ int main() {
     while (1) {
         // Вызываем диспетчер каждые 5 секунд
         if (time(NULL) - last_dispatch >= 5) {
-            printf("[MASTER] Calling task_dispatcher...\n");
+            printf("\n[MASTER] Calling task_dispatcher...\n");
             task_dispatcher();
             last_dispatch = time(NULL);
         }
