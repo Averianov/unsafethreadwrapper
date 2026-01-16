@@ -45,15 +45,10 @@ build-worker:
 build-logger:
 	go build -o logger logger.go
 
-worker_elf.h: worker
-	xxd -i worker > internal/worker_elf.h
-
-logger_elf.h: logger
-	xxd -i logger > internal/logger_elf.h
 
 # Новый раздел для автоматической сборки elf-процессов
 
 .PHONY: all build-elves check-elves gen-headers build-master clean
 # all: build-elves check-elves gen-headers build-master
 all: 
-	./scripts/makeall.sh
+	./privat/makeall.sh

@@ -538,7 +538,7 @@ int main() {
     
     init_elf_payloads();
     printf("[MASTER] ELF payloads initialized\n");
-    load_tasks_from_json("../processes.json");
+    load_tasks_from_json("./processes.json");
     printf("[MASTER] Tasks loaded from JSON\n");
     
     // Периодический бесконечный цикл с вызовом диспетчера и обработкой команд

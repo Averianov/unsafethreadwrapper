@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/Averianov/unsafethreadwrapper/cmd/worker1/service"
-	"github.com/Averianov/unsafethreadwrapper/cmd/wrapper"
+	"github.com/Averianov/unsafethreadwrapper/pkg/wrapper"
 )
 
 const (

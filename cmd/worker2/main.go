@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Averianov/unsafethreadwrapper/cmd/wrapper"
+	"github.com/Averianov/unsafethreadwrapper/pkg/wrapper"
 )
 
 var (

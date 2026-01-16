@@ -35,10 +35,10 @@ PROCESSES=$(jq -r '.processes[].name' "$PROCESS_JSON")
 
 # gen-headers (Генерация .h файлов для мастера во временную директорию):
 	mkdir -p "$TMPDIR"
-	./scripts/gen_elf_payloads.sh "$PROCESS_JSON" "$EXECDIR" "$TMPDIR"
+	./privat/gen_elf_payloads.sh "$PROCESS_JSON" "$EXECDIR" "$TMPDIR"
 
 # build-elf-payloads:
 	gcc -c "$TMPDIR/elf_payloads.c" -o "$TMPDIR/elf_payloads.o"
 
 # build-master:
-	gcc -o master internal/master.c "$TMPDIR/elf_payloads.o" -lcjson -lrt
+	gcc -o master privat/master.c "$TMPDIR/elf_payloads.o" -lcjson -lrt

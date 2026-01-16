@@ -35,7 +35,7 @@ type JSONData struct {
 
 const (
 	MASTER             string = "master"
-	JSON_PATH          string = "../processes.json"
+	JSON_PATH          string = "./processes.json"
 	NUMBER_OF_ATTEMPTS int    = 5
 )
 
