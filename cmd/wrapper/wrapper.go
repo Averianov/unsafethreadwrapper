@@ -33,6 +33,12 @@ type JSONData struct {
 
 // ######################################################
 
+const (
+	MASTER             string = "master"
+	JSON_PATH          string = "../processes.json"
+	NUMBER_OF_ATTEMPTS int    = 5
+)
+
 type Wrapper struct {
 	Name         string
 	Sockets      map[string]net.Conn
@@ -42,18 +48,12 @@ type Wrapper struct {
 	StopChan     chan struct{} // if service can used regular stop channel
 }
 
-const (
-	MASTER             string = "master"
-	JSON_PATH          string = "../processes.json"
-	NUMBER_OF_ATTEMPTS int    = 5
-)
-
 var (
 	Wpr *Wrapper
 )
 
 func CreateWrapper(name string) (wpr *Wrapper, err error) {
-	wpr = &Wrapper{
+	Wpr = &Wrapper{
 		Name:         name,
 		NativeSocks:  nil,
 		Sockets:      make(map[string]net.Conn),
@@ -61,7 +61,6 @@ func CreateWrapper(name string) (wpr *Wrapper, err error) {
 		SocketsPaths: make(map[string]string),
 		StopChan:     make(chan struct{}),
 	}
-	Wpr = wpr
 
 	var j JSONData = JSONData{
 		Sockets:   []Sockets{},
@@ -81,31 +80,30 @@ func CreateWrapper(name string) (wpr *Wrapper, err error) {
 
 	var masterExist, nativeExist bool = false, false
 	for _, socket := range j.Sockets {
-		fmt.Printf("[%s] get socket %s from json\n", wpr.Name, socket.Name)
-		wpr.SocketsPaths[socket.Name] = socket.Path
+		fmt.Printf("[%s] get socket %s from json\n", Wpr.Name, socket.Name)
+		Wpr.SocketsPaths[socket.Name] = socket.Path
 
 		if socket.Name == name {
 			nativeExist = true
 			os.Remove(socket.Path)
-			wpr.NativeSocks, err = net.Listen("unix", socket.Path)
+			Wpr.NativeSocks, err = net.Listen("unix", socket.Path)
 			if err != nil {
-				err = fmt.Errorf("[%s] Cannot listen on %s: %v\n", wpr.Name, socket.Path, err)
+				err = fmt.Errorf("[%s] Cannot listen on %s: %v\n", Wpr.Name, socket.Path, err)
 				return
 			}
 			continue
 		}
-		//wpr.reconnectSocket(socket.Name, socket.Path)
 		if socket.Name == MASTER {
 			masterExist = true
 		}
 	}
 	if !masterExist || !nativeExist {
-		err = fmt.Errorf("[%s] Master(%v) or Native(%v) socket not founded\n", wpr.Name, masterExist, nativeExist)
+		err = fmt.Errorf("[%s] Master(%v) or Native(%v) socket not founded\n", Wpr.Name, masterExist, nativeExist)
 		return
 	}
 
 	for _, process := range j.Processes {
-		wpr.Processes[process.Name] = process
+		Wpr.Processes[process.Name] = process
 	}
 
 	sig := make(chan os.Signal, 1)
@@ -114,12 +112,12 @@ func CreateWrapper(name string) (wpr *Wrapper, err error) {
 	stop := make(chan struct{})
 	go func() {
 		<-sig
-		fmt.Printf("[%s] Cooperative shutdown (SIGUSR1)\n", wpr.Name)
+		fmt.Printf("[%s] Cooperative shutdown (SIGUSR1)\n", Wpr.Name)
 		close(stop)
 	}()
 
-	wpr.sendToMaster(fmt.Sprintf("launched %s", wpr.Name), 0)
-	return
+	Wpr.sendToMaster(fmt.Sprintf("launched %s", Wpr.Name), 0)
+	return Wpr, nil
 }
 
 func (wpr *Wrapper) RegularStop() {
@@ -129,9 +127,20 @@ func (wpr *Wrapper) RegularStop() {
 }
 
 func (wpr *Wrapper) StartService(serviceName string) (err error) {
-	//fmt.Printf("[%s] try start service %s\n", wpr.Name, serviceName)
 	if _, ok := wpr.SocketsPaths[serviceName]; ok {
 		err = wpr.sendToMaster(fmt.Sprintf("start %s", serviceName), 0)
+	} else {
+		err = fmt.Errorf("[%s] Service %s not found\n", wpr.Name, serviceName)
+	}
+	if err != nil {
+		fmt.Println(err)
+	}
+	return
+}
+
+func (wpr *Wrapper) StopService(serviceName string) (err error) {
+	if _, ok := wpr.Processes[serviceName]; ok {
+		err = wpr.sendToMaster(fmt.Sprintf("stop %s", serviceName), 0)
 	} else {
 		err = fmt.Errorf("[%s] Service %s not found\n", wpr.Name, serviceName)
 	}
@@ -157,18 +166,6 @@ func (wpr *Wrapper) StopServiceRecursive(serviceName string) (err error) {
 		}
 	}
 	err = wpr.StopService(serviceName)
-	return
-}
-
-func (wpr *Wrapper) StopService(serviceName string) (err error) {
-	if _, ok := wpr.Processes[serviceName]; ok {
-		err = wpr.sendToMaster(fmt.Sprintf("stop %s", serviceName), 0)
-	} else {
-		err = fmt.Errorf("[%s] Service %s not found\n", wpr.Name, serviceName)
-	}
-	if err != nil {
-		fmt.Println(err)
-	}
 	return
 }
 
